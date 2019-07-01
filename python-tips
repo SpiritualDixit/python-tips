@@ -1,0 +1,65 @@
+# Tips #1: Use immutable global constant collections
+
+Avoid hard-to-find bugs by using immutable global constant collections.
+
+The Python style guide encourages module-level constants. These, although supposedly constant, are often implemented with 
+mutable collection types (e.g. list, dict, set), which can lead to hard-to-find bugs, especially as references to these 
+collections are passed around and may be accidentally mutated. The solution is simple: use immutable collections 
+(tuple, frozenset, frozendict) instead.
+
+## Problem
+To illustrate the problem with using mutable collections for constants, try spotting the bug in the following code:
+
+    QUICK_RELOAD_JOBS = ['drive', 'gmail', 'youtube']
+    SLOW_RELOAD_JOBS = ['gws']
+    
+    def reload_jobs(is_full_reload):
+      jobs_to_reload = QUICK_RELOAD_JOBS
+      if is_full_reload:
+        jobs_to_reload += SLOW_RELOAD_JOBS
+      reload_jobs_list(jobs_to_reload) 
+
+The answer: `QUICK_RELOAD_JOBS` variable is modified every time the full reload takes place, appending `SLOW_RELOAD_JOBS`. Because of this, each full reload after the first full reload will also append `SLOW_RELOAD_JOBS` again.
+
+    >>> QUICK_RELOAD_JOBS
+    ['drive', 'gmail', 'youtube']
+    >>> reload_jobs(is_full_reload=True)
+    >>> QUICK_RELOAD_JOBS
+    ['drive', 'gmail', 'youtube', 'gws']
+    If we call the function again:
+    
+    
+    >>> reload_jobs(is_full_reload=True)
+    >>> QUICK_RELOAD_JOBS
+    ['drive', 'gmail', 'youtube', 'gws', 'gws']
+
+Note that it is easy to forget that += modifies the list in-place 1.
+
+## Solution
+To prevent a global variable from being modified, use immutable collections, like tuple, frozenset, or frozendict. Code that would otherwise mutate these variables will instead create copies when possible (like when using +=), and will otherwise fail at runtime (like when using .extend()).
+
+To illustrate the change on the previous example:
+
+    QUICK_RELOAD_JOBS = ('drive', 'gmail', 'youtube')
+    SLOW_RELOAD_JOBS = ('gws')
+    
+    def reload_jobs(is_full_reload):
+      jobs_to_reload = QUICK_RELOAD_JOBS
+      if is_full_reload:
+        jobs_to_reload += SLOW_RELOAD_JOBS
+      reload_jobs_list(jobs_to_reload)
+  
+  Now it works:
+  
+
+    >>> QUICK_RELOAD_JOBS
+    ('drive', 'gmail', 'youtube')
+    >>> reload_jobs(is_full_reload=True)
+    >>> QUICK_RELOAD_JOBS
+    ('drive', 'gmail', 'youtube')
+
+## The Takeaway
+Use immutable types for module-level constant collections:
+-   Instead of `list`, use `tuple`.
+-   Instead of `set`, use `frozenset`.
+-   Instead of `dict`, use `frozendict` from the third_party `frozendict` module.
